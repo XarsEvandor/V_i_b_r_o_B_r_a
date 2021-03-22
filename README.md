@@ -1,4 +1,4 @@
 # VibroBra
- A project that aims to develop a vibrating bra in order to enable breast tissue regeneration.
 
- The code currently present allows for the operation of a motor and a two layered fft analysis from an accelarometer.
+Software and mixed signal electronics developer and tester. This Biomedical Engineering project aims to use vibration in order to enable breast tissue regeneration after mastectomy surgery. 
+Supervised by Dr. Alexander Astaras (ACT, AUTH).
