@@ -15,11 +15,14 @@
 #define SYNC_INTERVAL LOG_INTERVAL // mills between calls to flush() - to write data to the card
 uint32_t syncTime = 0;             // time of last sync()
 
-#define ECHO_TO_SERIAL 0 // echo data to serial port
+#define ECHO_TO_SERIAL 0 // echo data to serial port.
 #define WAIT_TO_START 0  // Wait for serial input in setup()
-#define MOTOR_TOGGLE 1   // Enable the ability to toggle motor functionality manually
+#define MOTOR_TOGGLE 0   // Enable the ability to toggle motor functionality manually.
+#define TOGGLE_TIME 1    // Enable the ability to toggle motor functionality in set time intervals.
 #define PWM_TIME 0       // Used for Pulse width modulation that is based on the millis factor. This means that the longer the program runs, the slower the motor speed will increase.
-#define PWM_PERIODIC 0   //Used for PWM with a periodic change in speed.
+#define PWM_PERIODIC 0   // Used for PWM with a periodic change in speed.
+#define POWER_PERCENTAGE 0.4 // Used to regulate the speed of the motor easily
+#define TIME_INTERVAL 5  // Used to set the number of loops between toggles in TOGGLE_TIME
 
 // the digital pins that connect to the LEDs
 #define redLEDpin 2
@@ -118,7 +121,7 @@ void setup(void)
     AFMS.begin(1000); // OR with a different frequency, say 1KHz
 
     // Set the speed to start, from 0 (off) to 255 (max speed). According to Adafruit files, speed here is power given (max is 5v, min is GND)
-    myMotor->setSpeed(0);
+    myMotor->setSpeed(255 * POWER_PERCENTAGE);
     myMotor->run(FORWARD);
 
     logfile.println("milliseconds,X-coordinate,Y-coordinate,Z-coordinate,Orientation,-,walkerX,walkerY,walkerZ,isWalking,-,motorX,motorY,motorZ,motorActive,motorSpeed");
@@ -128,12 +131,13 @@ void setup(void)
 }
 
 int loopCount = 0; //Variable that will not reset automatically with every loop
-int speed = 0;
+int speed = 255 * POWER_PERCENTAGE;
 int count = 0;
 int sumNew = 0;
 int sumOld = 0;
 int sumNewWalking = 0;
 int sumOldWalking = 0;
+bool toggle = 0;
 
 void loop(void){
     // delay for the amount of time we want between readings
@@ -263,7 +267,19 @@ void loop(void){
 
     int incomingByte = -1; // for incoming serial data
 
-    #if MOTOR_TOGGLE //Type 0 to turn off the motor and 1 to turn it on
+#if TOGGLE_TIME
+    if (count <= 5)
+    {
+        myMotor->setSpeed(speed * int(toggle));
+        count++;
+    }
+    else{
+        toggle = !toggle;
+        count = 0;
+    }
+#endif
+
+#if MOTOR_TOGGLE //Type 0 to turn off the motor and 1 to turn it on
         myMotor->setSpeed(speed);
 
         if (Serial.available() > 0)
@@ -280,7 +296,7 @@ void loop(void){
             }
             else if (incomingByte == 49)
             {
-                speed = 250;
+                speed = 255 * POWER_PERCENTAGE;
                 myMotor->setSpeed(speed);
                 Serial.println("MOTOR ON");
             }
@@ -350,7 +366,7 @@ void loop(void){
         else
             speed -= 10;
 
-        if (speed == 0 || speed == 200)
+        if (speed == 0 || speed == 255 * POWER_PERCENTAGE)
             count++;
 
         Serial.print("Count: ");
@@ -447,7 +463,7 @@ bool fftSamples(int& sumNew, int& sumOld, int choice)
 
     if(choice == 0){
         
-        if (sumNew < sumOld + 100 && sumNew > sumOld - 100)
+        if (sumNew < sumOld + 200 && sumNew > sumOld - 200)
         {
             motorBoolean = true;
         }
@@ -455,7 +471,7 @@ bool fftSamples(int& sumNew, int& sumOld, int choice)
         sumOld = x + y + z;
     }
     else if(choice == 1){
-        if (sumNew < sumOld + 2 && sumNew > sumOld - 2)
+        if (sumNew < sumOld + 4 && sumNew > sumOld - 4)
         {
             motorBoolean = true;
         }
