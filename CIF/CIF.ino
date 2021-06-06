@@ -17,11 +17,11 @@ uint32_t syncTime = 0;             // time of last sync()
 
 #define ECHO_TO_SERIAL 0 // echo data to serial port.
 #define WAIT_TO_START 0  // Wait for serial input in setup()
-#define MOTOR_TOGGLE 0   // Enable the ability to toggle motor functionality manually.
-#define TOGGLE_TIME 1    // Enable the ability to toggle motor functionality in set time intervals.
+#define MOTOR_TOGGLE 1   // Enable the ability to toggle motor functionality manually.
+#define TOGGLE_TIME 0    // Enable the ability to toggle motor functionality in set time intervals.
 #define PWM_TIME 0       // Used for Pulse width modulation that is based on the millis factor. This means that the longer the program runs, the slower the motor speed will increase.
 #define PWM_PERIODIC 0   // Used for PWM with a periodic change in speed.
-#define POWER_PERCENTAGE 0.4 // Used to regulate the speed of the motor easily
+#define POWER_PERCENTAGE 0.15 // Used to regulate the speed of the motor easily
 #define TIME_INTERVAL 5  // Used to set the number of loops between toggles in TOGGLE_TIME
 
 // the digital pins that connect to the LEDs
@@ -271,6 +271,10 @@ void loop(void){
     if (count <= 5)
     {
         myMotor->setSpeed(speed * int(toggle));
+//        Serial.print("Speed: ");
+//        Serial.println(speed * int(toggle));
+//        Serial.print("Count: ");
+//        Serial.println(count);
         count++;
     }
     else{
@@ -395,7 +399,11 @@ void loop(void){
     logfile.print(motorBoolean);
 
     logfile.print(", "); // change column
-    logfile.print(speed);
+    #if TOGGLE_TIME
+        logfile.print(speed * toggle);
+    #else
+        logfile.print(speed);
+    #endif  
 
     // blink LED to show we are syncing data to the card & updating FAT!
     digitalWrite(greenLEDpin, LOW);
@@ -463,7 +471,7 @@ bool fftSamples(int& sumNew, int& sumOld, int choice)
 
     if(choice == 0){
         
-        if (sumNew < sumOld + 200 && sumNew > sumOld - 200)
+        if (sumNew < sumOld + 200 && sumNew > sumOld - 200 && sumNew > 1000) // Choice 0 is for motorActive
         {
             motorBoolean = true;
         }
@@ -471,7 +479,7 @@ bool fftSamples(int& sumNew, int& sumOld, int choice)
         sumOld = x + y + z;
     }
     else if(choice == 1){
-        if (sumNew < sumOld + 4 && sumNew > sumOld - 4)
+        if (sumNew < sumOld + 4 && sumNew > sumOld - 4 && sumNew < 10) // Choice 1 is for isWalking
         {
             motorBoolean = true;
         }
