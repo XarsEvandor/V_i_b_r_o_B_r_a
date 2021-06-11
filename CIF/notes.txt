@@ -1,0 +1,10 @@
+1. Commented out lines 229-238. What seems to be happening is that, at that point in the code, if the time is not over the SYNC_INTERVAL that is defined at the start,
+    the loop function starts ver, this means that we do not examine the rest of the code. This couldbe useful on its own since we do not waste resources on performing the 
+    rest of the actions that will not be logged anyway since the synch interval is not met. However, commenting that part out will probably mean there will be no half lines 
+    printed in the logger. A test is in order to confirm.
+
+2. Moved the creation of the logger inside the loop (was in setup) so that we can close and open the file on every iteration to avoid loss of data. There is chance that this
+    solution will present bugs in the code. Testing is in order.
+
+3. Added the TIMED_ACTIVATION functionality that allows for cycles of activation based on predefined activation values (ON_TIME, ACTIVE_DAYS). A lot of testing is needed to 
+    ensure proper functionality. Please take a look at the commends to understand the details of how TIMED_ACTIVATION works.

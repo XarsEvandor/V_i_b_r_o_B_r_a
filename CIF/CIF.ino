@@ -23,6 +23,9 @@ uint32_t syncTime = 0;             // time of last sync()
 #define PWM_PERIODIC 0   // Used for PWM with a periodic change in speed.
 #define POWER_PERCENTAGE 0.15 // Used to regulate the speed of the motor easily
 #define TIME_INTERVAL 5  // Used to set the number of loops between toggles in TOGGLE_TIME
+#define TIMED_ACTIVATION 1 // Used to split the activated time of the program in set timed intervals.
+#define ON_TIME 8 // The time that the program will stay active (in hours)
+#define ACTIVE_DAYS 2 // The number of days the program will work. Depends on TIMED_ACTIVATION.
 
 // the digital pins that connect to the LEDs
 #define redLEDpin 2
@@ -98,24 +101,6 @@ void setup(void)
         Serial.println("Accelerometer connected");
     }
 
-    // create a new file
-    char filename[] = "LOGGER00.CSV";
-    for (uint8_t i = 0; i < 100; i++)
-    {
-        filename[6] = i / 10 + '0';
-        filename[7] = i % 10 + '0';
-        if (!SD.exists(filename))
-        {
-            // only open a new file if it doesn't exist
-            logfile = SD.open(filename, FILE_WRITE);
-            break; // leave the loop!
-        }
-    }
-
-    if (!logfile)
-    {
-        Serial.println("couldnt create file");
-    }
 
     //AFMS.begin();  // create with the default frequency 1.6KHz
     AFMS.begin(1000); // OR with a different frequency, say 1KHz
@@ -135,13 +120,36 @@ int speed = 255 * POWER_PERCENTAGE;
 int count = 0;
 int sumNew = 0;
 int sumOld = 0;
+int activeCounter = 0;
+int activeCycles = 0;
 int sumNewWalking = 0;
 int sumOldWalking = 0;
 bool toggle = 0;
 
 void loop(void){
+    
+    // create a new file
+    char filename[] = "LOGGER00.CSV";
+    for (uint8_t i = 0; i < 100; i++)
+    {
+        filename[6] = i / 10 + '0';
+        filename[7] = i % 10 + '0';
+        if (!SD.exists(filename))
+        {
+            // only open a new file if it doesn't exist
+            logfile = SD.open(filename, FILE_WRITE);
+            break; // leave the loop!
+        }
+    }
+
+    if (!logfile)
+    {
+        Serial.println("couldnt create file");
+    }
+
     // delay for the amount of time we want between readings
-    delay((LOG_INTERVAL - 1) - (millis() % LOG_INTERVAL));
+    // delay((LOG_INTERVAL - 1) - (millis() % LOG_INTERVAL));
+    delay(LOG_INTERVAL);
 
     digitalWrite(greenLEDpin, HIGH);
 
@@ -152,6 +160,29 @@ void loop(void){
     #if ECHO_TO_SERIAL
     Serial.print(m); // milliseconds since start
     #endif
+
+#if TIMED_ACTIVATION
+    // We divide the active time (in millis) by the number of millis in an hour
+    // (3.600.000) and we pass it on an integer value so it will be truncated.
+    activeCounter = m / 3600000;
+
+    // If the ON_TIME interval has passed, the program will delay for the rest
+    // of the day. After ACTIVE_DAYS cycles, the program will exit.
+    if (activeCounter == ON_TIME)
+    {
+        delay((24-ON_TIME) * 3600000);
+        activeCounter = 0;
+        activeCycles++;
+
+        // If the program cycles for the required ammount of time, it will stop.
+        if (activeCycles == ACTIVE_DAYS)
+        {
+            exit(0);
+        }
+
+    }
+#endif
+
 
     float Xvalue = accel.getCalculatedX();
     float Yvalue = accel.getCalculatedY();
@@ -164,14 +195,14 @@ void loop(void){
     logfile.print(", "); // change column
     logfile.print(Zvalue);
 
-    #if ECHO_TO_SERIAL
+#if ECHO_TO_SERIAL
     Serial.print(", ");
     Serial.print(Xvalue);
     Serial.print(", ");
     Serial.print(Yvalue);
     Serial.print(", ");
     Serial.print(Zvalue);
-    #endif //ECHO_TO_SERIAL
+#endif //ECHO_TO_SERIAL
 
     logfile.print(", "); // change column
     logfile.print('"');
@@ -225,16 +256,16 @@ void loop(void){
 
     digitalWrite(greenLEDpin, LOW);
 
-    // Now we write data to disk! Don't sync too often - requires 2048 bytes of I/O to SD card
-    // which uses a bunch of power and takes time
-    if ((millis() - syncTime) < SYNC_INTERVAL)
-        return;
-    syncTime = millis();
+    // // Now we write data to disk! Don't sync too often - requires 2048 bytes of I/O to SD card
+    // // which uses a bunch of power and takes time
+    // if ((millis() - syncTime) < SYNC_INTERVAL)
+    //     return;
+    // syncTime = millis();
 
-    // blink LED to show we are syncing data to the card & updating FAT!
-    digitalWrite(redLEDpin, HIGH);
-    logfile.flush();
-    digitalWrite(redLEDpin, LOW);
+    // // blink LED to show we are syncing data to the card & updating FAT!
+    // digitalWrite(redLEDpin, HIGH);
+    // logfile.flush();
+    // digitalWrite(redLEDpin, LOW);
 
     delay(500); 
 
@@ -425,6 +456,7 @@ void loop(void){
     digitalWrite(redLEDpin, HIGH);
     logfile.flush();
     digitalWrite(redLEDpin, LOW);
+    logfile.close()
 
     delay(1000);
 }
