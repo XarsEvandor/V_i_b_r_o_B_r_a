@@ -15,9 +15,9 @@
 #define SYNC_INTERVAL LOG_INTERVAL // mills between calls to flush() - to write data to the card
 uint32_t syncTime = 0;             // time of last sync()
 
-#define ECHO_TO_SERIAL 0 // echo data to serial port.
+#define ECHO_TO_SERIAL 1 // echo data to serial port.
 #define WAIT_TO_START 0  // Wait for serial input in setup()
-#define MOTOR_TOGGLE 1   // Enable the ability to toggle motor functionality manually.
+#define MOTOR_TOGGLE 0   // Enable the ability to toggle motor functionality manually.
 #define TOGGLE_TIME 0    // Enable the ability to toggle motor functionality in set time intervals.
 #define PWM_TIME 0       // Used for Pulse width modulation that is based on the millis factor. This means that the longer the program runs, the slower the motor speed will increase.
 #define PWM_PERIODIC 0   // Used for PWM with a periodic change in speed.
@@ -60,6 +60,7 @@ double zImag[samples];
 
 // the logging file
 File logfile;
+char filename[] = "LOGGER00.CSV";
 
 void setup(void)
 {
@@ -109,27 +110,7 @@ void setup(void)
     myMotor->setSpeed(255 * POWER_PERCENTAGE);
     myMotor->run(FORWARD);
 
-    logfile.println("milliseconds,X-coordinate,Y-coordinate,Z-coordinate,Orientation,-,walkerX,walkerY,walkerZ,isWalking,-,motorX,motorY,motorZ,motorActive,motorSpeed");
-    #if ECHO_TO_SERIAL
-        Serial.println("milliseconds,X-coordinate,Y-coordinate,Z-coordinate,Orientation,-,walkerX,walkerY,walkerZ,isWalking,-,motorX,motorY,motorZ,motorActive,motorSpeed");
-    #endif //ECHO_TO_SERIAL
-}
-
-int loopCount = 0; //Variable that will not reset automatically with every loop
-int speed = 255 * POWER_PERCENTAGE;
-int count = 0;
-int sumNew = 0;
-int sumOld = 0;
-int activeCounter = 0;
-int activeCycles = 0;
-int sumNewWalking = 0;
-int sumOldWalking = 0;
-bool toggle = 0;
-
-void loop(void){
-    
     // create a new file
-    char filename[] = "LOGGER00.CSV";
     for (uint8_t i = 0; i < 100; i++)
     {
         filename[6] = i / 10 + '0';
@@ -146,6 +127,56 @@ void loop(void){
     {
         Serial.println("couldnt create file");
     }
+
+    logfile.println("milliseconds,X-coordinate,Y-coordinate,Z-coordinate,Orientation,-,walkerX,walkerY,walkerZ,isWalking,-,motorX,motorY,motorZ,motorActive,motorSpeed");
+    #if ECHO_TO_SERIAL
+        Serial.println("milliseconds,X-coordinate,Y-coordinate,Z-coordinate,Orientation,-,walkerX,walkerY,walkerZ,isWalking,-,motorX,motorY,motorZ,motorActive,motorSpeed");
+    #endif //ECHO_TO_SERIAL
+
+//    logfile.flush();
+//    logfile.close();
+}
+
+int loopCount = 0; //Variable that will not reset automatically with every loop
+int speed = 255 * POWER_PERCENTAGE;
+int count = 0;
+int sumNew = 0;
+int sumOld = 0;
+int activeCounter = 0;
+int activeCycles = 0;
+int sumNewWalking = 0;
+int sumOldWalking = 0;
+bool toggle = 0;
+
+void loop(void){
+//
+//    // create a new file
+//    char filename[] = "LOGGER00.CSV";
+//    for (uint8_t i = 0; i < 100; i++)
+//    {
+//        filename[6] = i / 10 + '0';
+//        filename[7] = i % 10 + '0';
+//        if (!SD.exists(filename))
+//        {
+//            filename[7] = (i-1) % 10 + '0';
+//            Serial.println(filename);
+//            // open the created file and start writting.
+//            logfile = SD.open(filename, FILE_WRITE);
+//            break; // leave the loop!
+//        }
+//    }
+//
+//    if (!logfile)
+//    {
+//        Serial.println("couldnt create file");
+//    }
+
+//    logfile = SD.open(filename, FILE_WRITE);
+//
+//    if (!logfile)
+//    {
+//        Serial.println("couldnt create file");
+//    }
 
     // delay for the amount of time we want between readings
     // delay((LOG_INTERVAL - 1) - (millis() % LOG_INTERVAL));
@@ -164,19 +195,26 @@ void loop(void){
 #if TIMED_ACTIVATION
     // We divide the active time (in millis) by the number of millis in an hour
     // (3.600.000) and we pass it on an integer value so it will be truncated.
-    activeCounter = m / 3600000;
+    activeCounter = (m / 3600000) - (activeCycles * 24);
+    Serial.println(activeCounter);
+    myMotor->setSpeed(speed);
 
     // If the ON_TIME interval has passed, the program will delay for the rest
     // of the day. After ACTIVE_DAYS cycles, the program will exit.
-    if (activeCounter == ON_TIME)
+    if (activeCounter >= ON_TIME)
     {
-        delay((24-ON_TIME) * 3600000);
-        activeCounter = 0;
-        activeCycles++;
+        myMotor->setSpeed(0);
+        // delay((24 - ON_TIME) * 1000);
+        // myMotor->setSpeed(speed);
 
+        if (activeCounter >= 24){
+            activeCycles++;
+        }
+        
         // If the program cycles for the required ammount of time, it will stop.
         if (activeCycles == ACTIVE_DAYS)
         {
+            logfile.close();
             exit(0);
         }
 
@@ -448,15 +486,15 @@ void loop(void){
 
     // Now we write data to disk! Don't sync too often - requires 2048 bytes of I/O to SD card
     // which uses a bunch of power and takes time
-    if ((millis() - syncTime) < SYNC_INTERVAL)
-        return;
-    syncTime = millis();
+//    if ((millis() - syncTime) < SYNC_INTERVAL)
+//        return;
+//    syncTime = millis();
 
     // blink LED to show we are syncing data to the card & updating FAT!
     digitalWrite(redLEDpin, HIGH);
     logfile.flush();
     digitalWrite(redLEDpin, LOW);
-    logfile.close()
+//    logfile.close();
 
     delay(1000);
 }
